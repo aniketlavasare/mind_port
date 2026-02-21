@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readAgent, writeAgent, deleteAgentBlob } from "@/lib/storage/blob-server"
+import { readAgent, writeAgent, deleteAgentRedis } from "@/lib/storage/redis"
 import { generateId } from "@/lib/uuid"
 import type { AgentOnchain, AgentRecord } from "@/lib/types"
 
@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 /** DELETE /api/agents/[id] */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const deleted = await deleteAgentBlob(id)
+  const deleted = await deleteAgentRedis(id)
   if (!deleted) return NextResponse.json({ error: "not_found" }, { status: 404 })
   return NextResponse.json({ ok: true })
 }

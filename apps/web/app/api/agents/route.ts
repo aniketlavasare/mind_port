@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readAgents, writeAgent } from "@/lib/storage/blob-server"
+import { readAgents, writeAgent } from "@/lib/storage/redis"
 import { generateId } from "@/lib/uuid"
 import type { AgentRecord, AgentSpec } from "@/lib/types"
 
