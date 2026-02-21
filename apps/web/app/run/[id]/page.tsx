@@ -4,8 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
-  Send, Bot, User, AlertCircle, ArrowLeft, Pencil, RotateCcw,
+  Send, Bot, User, AlertCircle, ArrowLeft, Pencil, RotateCcw, Lock, ShieldCheck, Loader2,
 } from "lucide-react"
+import { useAccount, useSignMessage } from "wagmi"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -13,21 +14,39 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Accordion } from "@/components/ui/accordion"
 import { ReceiptAccordion } from "@/components/ReceiptPanel"
 import { TraceAccordion } from "@/components/TracePanel"
+import { WalletButton } from "@/components/WalletButton"
 import { renderAnswer } from "@/lib/render"
 import { AgentRecord, ChatMessage, MODELS, Receipt, RunRequest, TraceEvent } from "@/lib/types"
 import { getAgent, incrementRunStats } from "@/lib/storage"
+
+interface TokenGate {
+  tokenId: number
+  userAddress: string
+  signature: string
+  nonce: string
+}
 
 export default function RunPage() {
   const params = useParams()
   const router = useRouter()
   const id = params?.id as string
 
+  const { address, isConnected } = useAccount()
+  const { signMessageAsync } = useSignMessage()
+
   const [agent, setAgent] = useState<AgentRecord | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [tokenGate, setTokenGate] = useState<TokenGate | null>(null)
+  const [isSigning, setIsSigning] = useState(false)
+  const [signError, setSignError] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Whether this agent requires owner-gating
+  const requiresGate = !!agent?.onchain?.tokenId
+  const isAuthorized = !requiresGate || !!tokenGate
 
   useEffect(() => {
     if (!id) return
@@ -39,6 +58,23 @@ export default function RunPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isLoading])
+
+  const handleSignAuth = async () => {
+    if (!agent?.onchain || !address) return
+    setIsSigning(true)
+    setSignError("")
+    try {
+      const tokenId = agent.onchain.tokenId
+      const nonce = Date.now().toString()
+      const message = `MindPort Run Authorization\nTokenId: ${tokenId}\nNonce: ${nonce}`
+      const signature = await signMessageAsync({ message })
+      setTokenGate({ tokenId, userAddress: address, signature, nonce })
+    } catch (e: unknown) {
+      setSignError(e instanceof Error ? e.message.split("\n")[0] : "Signing failed")
+    } finally {
+      setIsSigning(false)
+    }
+  }
 
   const handleSend = useCallback(async () => {
     if (!inputMessage.trim() || isLoading || !agent) return
@@ -64,7 +100,12 @@ export default function RunPage() {
     }
 
     try {
-      const request: RunRequest = { spec: agent.spec, message: userMsg.content, session_id: sessionId }
+      const request: RunRequest & { tokenGate?: TokenGate } = {
+        spec: agent.spec,
+        message: userMsg.content,
+        session_id: sessionId,
+        ...(tokenGate ? { tokenGate } : {}),
+      }
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,7 +155,7 @@ export default function RunPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [inputMessage, isLoading, agent])
+  }, [inputMessage, isLoading, agent, tokenGate])
 
   if (notFound) {
     return (
@@ -156,6 +197,7 @@ export default function RunPage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs hidden sm:flex">{spec.model_choice.split("/").pop()}</Badge>
+          {agent.onchain && <Badge variant="outline" className="text-xs hidden sm:flex gap-1"><Lock className="w-2.5 h-2.5" />Token #{agent.onchain.tokenId}</Badge>}
           <span className="text-xs text-gray-400 hidden sm:block">{stats.runs} run{stats.runs !== 1 ? "s" : ""}</span>
           {messages.length > 0 && (
             <Button variant="ghost" size="sm" onClick={() => setMessages([])} title="Clear chat">
@@ -165,6 +207,7 @@ export default function RunPage() {
           <Button variant="outline" size="sm" onClick={() => router.push(`/builder?id=${agent.id}`)}>
             <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
           </Button>
+          <WalletButton />
         </div>
       </header>
 
@@ -197,11 +240,40 @@ export default function RunPage() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Ownership gate banner */}
+      {requiresGate && !isAuthorized && (
+        <div className="border-t border-amber-200 bg-amber-50 px-5 py-3 shrink-0">
+          <div className="flex items-center justify-between max-w-4xl mx-auto gap-3">
+            <div className="flex items-center gap-2 text-xs text-amber-700">
+              <Lock className="w-3.5 h-3.5 shrink-0" />
+              This agent is token-gated. Sign to verify ownership before running.
+            </div>
+            <div className="flex items-center gap-2">
+              {!isConnected && <WalletButton />}
+              {isConnected && (
+                <Button size="sm" variant="outline" onClick={handleSignAuth} disabled={isSigning} className="text-xs h-7">
+                  {isSigning ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Signing…</> : <><ShieldCheck className="w-3 h-3 mr-1.5" /> Sign & Authorize</>}
+                </Button>
+              )}
+            </div>
+          </div>
+          {signError && <p className="text-xs text-red-500 mt-1 max-w-4xl mx-auto">{signError}</p>}
+        </div>
+      )}
+
+      {requiresGate && isAuthorized && (
+        <div className="border-t border-green-200 bg-green-50 px-5 py-1.5 shrink-0">
+          <p className="text-xs text-green-600 flex items-center gap-1.5 max-w-4xl mx-auto">
+            <ShieldCheck className="w-3 h-3" /> Ownership verified for this session.
+          </p>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-gray-200 px-5 py-4 shrink-0">
         <div className="flex gap-2 max-w-4xl mx-auto">
           <Textarea
-            placeholder="Send a message…"
+            placeholder={!isAuthorized ? "Sign to authorize before sending…" : "Send a message…"}
             value={inputMessage}
             onChange={e => setInputMessage(e.target.value)}
             onKeyDown={e => {
@@ -209,11 +281,11 @@ export default function RunPage() {
             }}
             rows={2}
             className="resize-none flex-1"
-            disabled={isLoading}
+            disabled={isLoading || !isAuthorized}
           />
           <Button
             onClick={handleSend}
-            disabled={isLoading || !inputMessage.trim()}
+            disabled={isLoading || !inputMessage.trim() || !isAuthorized}
             className="self-end h-9 w-9 p-0"
             size="icon"
           >

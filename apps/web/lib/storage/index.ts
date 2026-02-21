@@ -93,6 +93,23 @@ export function toggleFavorite(id: string): AgentRecord | null {
   return updated
 }
 
+export function updateOnchain(
+  id: string,
+  tokenId: number,
+  chainId: number,
+  agentBrainAddress: string
+): AgentRecord | null {
+  const existing = store.agents.get(id)
+  if (!existing) return null
+  const updated: AgentRecord = {
+    ...existing,
+    onchain: { tokenId, chainId, agentBrainAddress },
+    updatedAt: new Date().toISOString(),
+  }
+  store.agents.set(id, updated)
+  return updated
+}
+
 export function incrementRunStats(id: string): AgentRecord | null {
   const existing = store.agents.get(id)
   if (!existing) return null

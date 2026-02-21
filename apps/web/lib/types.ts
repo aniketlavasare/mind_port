@@ -80,6 +80,12 @@ export const DEFAULT_SPEC: AgentSpec = {
   model_choice: DEFAULT_MODEL,
 }
 
+export interface AgentOnchain {
+  tokenId: number
+  chainId: number
+  agentBrainAddress: string
+}
+
 export interface AgentRecord {
   id: string
   createdAt: string
@@ -94,4 +100,5 @@ export interface AgentRecord {
     colorTag: "none" | "gray" | "black"
   }
   lastOutputFormatUsed?: string
+  onchain?: AgentOnchain
 }

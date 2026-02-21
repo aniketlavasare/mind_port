@@ -3,18 +3,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Plus, Search, SlidersHorizontal, Star, Download, Upload, Bot } from "lucide-react"
+import { Plus, Search, SlidersHorizontal, Star, Download, Upload, Bot, Cpu, Store } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
 import { AgentCard } from "@/components/AgentCard"
 import { ConfirmDialog } from "@/components/ConfirmDialog"
 import { ImportDialog } from "@/components/ImportDialog"
+import { ApproveAndListDialog } from "@/components/ApproveAndListDialog"
+import { WalletButton } from "@/components/WalletButton"
 import { AgentRecord } from "@/lib/types"
 import {
   deleteAgent, duplicateAgent, listAgents, toggleFavorite,
 } from "@/lib/storage"
+import { getContracts } from "@/lib/contracts"
 
 type SortKey = "recent" | "name" | "runs"
 
@@ -31,12 +35,14 @@ function exportAgent(agent: AgentRecord) {
 
 export default function LibraryPage() {
   const router = useRouter()
+  const contracts = useMemo(() => getContracts(), [])
   const [agents, setAgents] = useState<AgentRecord[]>([])
   const [search, setSearch] = useState("")
   const [favOnly, setFavOnly] = useState(false)
   const [sort, setSort] = useState<SortKey>("recent")
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [listAgentId, setListAgentId] = useState<string | null>(null)
 
   const reload = useCallback(() => setAgents(listAgents()), [])
   useEffect(() => { reload() }, [reload])
@@ -86,8 +92,9 @@ export default function LibraryPage() {
         <nav className="flex items-center gap-4 text-sm text-gray-500">
           <Link href="/library" className="text-gray-900 font-medium">Library</Link>
           <Link href="/builder" className="hover:text-gray-900 transition-colors">Builder</Link>
-          <Link href="/docs" className="hover:text-gray-900 transition-colors">Docs</Link>
+          <Link href="/marketplace" className="hover:text-gray-900 transition-colors">Marketplace</Link>
         </nav>
+        <WalletButton />
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -102,6 +109,9 @@ export default function LibraryPage() {
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
                 <Upload className="w-3.5 h-3.5 mr-1.5" /> Import
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/mint"><Cpu className="w-3.5 h-3.5 mr-1.5" /> Mint NFT</Link>
               </Button>
               <Button size="sm" className="bg-gray-900 hover:bg-gray-700 text-white" asChild>
                 <Link href="/builder">
@@ -157,16 +167,43 @@ export default function LibraryPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map(agent => (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  onOpen={() => router.push(`/builder?id=${agent.id}`)}
-                  onRun={() => router.push(`/run/${agent.id}`)}
-                  onDuplicate={() => handleDuplicate(agent.id)}
-                  onDelete={() => setDeleteId(agent.id)}
-                  onExport={() => exportAgent(agent)}
-                  onToggleFavorite={() => handleToggleFavorite(agent.id)}
-                />
+                <div key={agent.id} className="relative">
+                  <AgentCard
+                    agent={agent}
+                    onOpen={() => router.push(`/builder?id=${agent.id}`)}
+                    onRun={() => router.push(`/run/${agent.id}`)}
+                    onDuplicate={() => handleDuplicate(agent.id)}
+                    onDelete={() => setDeleteId(agent.id)}
+                    onExport={() => exportAgent(agent)}
+                    onToggleFavorite={() => handleToggleFavorite(agent.id)}
+                  />
+                  {/* Onchain badges & actions */}
+                  <div className="px-3 pb-3 -mt-1 flex items-center gap-2 flex-wrap">
+                    {agent.onchain ? (
+                      <>
+                        <Badge variant="secondary" className="text-xs gap-1 shrink-0">
+                          <Cpu className="w-2.5 h-2.5" /> Token #{agent.onchain.tokenId}
+                        </Badge>
+                        {contracts && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-xs px-2 gap-1 shrink-0"
+                            onClick={() => setListAgentId(agent.id)}
+                          >
+                            <Store className="w-3 h-3" /> List
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      contracts && (
+                        <Link href="/mint" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+                          Mint NFT →
+                        </Link>
+                      )
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -190,6 +227,23 @@ export default function LibraryPage() {
         onClose={() => setImportOpen(false)}
         onImported={() => { reload(); setImportOpen(false) }}
       />
+
+      {/* Approve + List dialog */}
+      {contracts && listAgentId && (() => {
+        const agent = agents.find(a => a.id === listAgentId)
+        if (!agent?.onchain) return null
+        return (
+          <ApproveAndListDialog
+            open={true}
+            onClose={() => setListAgentId(null)}
+            onSuccess={() => { setListAgentId(null); router.push("/marketplace") }}
+            tokenId={agent.onchain.tokenId}
+            brainAddress={contracts.agentBrain}
+            marketplaceAddress={contracts.marketplace}
+            agentName={agent.spec.name || "Unnamed Agent"}
+          />
+        )
+      })()}
     </div>
   )
 }
