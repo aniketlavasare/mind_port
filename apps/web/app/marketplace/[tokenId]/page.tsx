@@ -181,7 +181,7 @@ export default function ListingDetailPage() {
           <div className="rounded-lg border border-gray-200 p-4 space-y-2">
             {[
               ["Seller", `${state.seller.slice(0, 6)}…${state.seller.slice(-4)}`],
-              ["Min bid", `${formatEther(state.minBid)} ETH`],
+              ["Min bid", `${formatEther(state.minBid)} 0G`],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between text-sm">
                 <span className="text-gray-400">{k}</span>
@@ -192,7 +192,7 @@ export default function ListingDetailPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400 flex items-center gap-1"><Gavel className="w-3.5 h-3.5" /> Highest bid</span>
                 <div className="text-right">
-                  <p className="font-mono font-medium text-gray-900">{formatEther(state.highestBidAmount)} ETH</p>
+                  <p className="font-mono font-medium text-gray-900">{formatEther(state.highestBidAmount)} 0G</p>
                   <p className="text-xs font-mono text-gray-400">{state.highestBidder.slice(0, 6)}…{state.highestBidder.slice(-4)}</p>
                 </div>
               </div>
@@ -247,13 +247,13 @@ export default function ListingDetailPage() {
             {/* Bidder actions */}
             {!isSeller && (
               <div className="space-y-2">
-                <Label>Your bid (ETH)</Label>
+                <Label>Your bid (0G)</Label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
                     step="0.001"
                     min={formatEther(state.minBid)}
-                    placeholder={`≥ ${formatEther(hasHighestBid ? state.highestBidAmount + 1n : state.minBid)} ETH`}
+                    placeholder={`≥ ${formatEther(hasHighestBid ? state.highestBidAmount + 1n : state.minBid)} 0G`}
                     value={bidAmount}
                     onChange={e => setBidAmount(e.target.value)}
                     disabled={txState === "sending" || txState === "confirming"}

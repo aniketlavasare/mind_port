@@ -55,14 +55,14 @@ export function ListingCard({ listing }: ListingCardProps) {
       <div className="space-y-1 border-t border-gray-100 pt-2 mt-2">
         <div className="flex justify-between text-xs">
           <span className="text-gray-400">Min bid</span>
-          <span className="font-mono text-gray-700">{formatEther(listing.minBid)} ETH</span>
+          <span className="font-mono text-gray-700">{formatEther(listing.minBid)} 0G</span>
         </div>
         {hasHighestBid && (
           <div className="flex justify-between text-xs">
             <span className="text-gray-400 flex items-center gap-1">
               <Gavel className="w-3 h-3" /> Highest bid
             </span>
-            <span className="font-mono text-gray-900 font-medium">{formatEther(listing.highestBidAmount)} ETH</span>
+            <span className="font-mono text-gray-900 font-medium">{formatEther(listing.highestBidAmount)} 0G</span>
           </div>
         )}
         <div className="flex justify-between text-xs">

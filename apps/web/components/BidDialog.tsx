@@ -40,8 +40,8 @@ export function BidDialog({
   const handleBid = async () => {
     if (!isConnected || !publicClient) return
     const value = parseEther(amount)
-    if (value < minBid) { setErrorMsg(`Minimum bid is ${formatEther(minBid)} ETH`); return }
-    if (value <= currentHighestBid) { setErrorMsg(`Must exceed current highest bid of ${formatEther(currentHighestBid)} ETH`); return }
+    if (value < minBid) { setErrorMsg(`Minimum bid is ${formatEther(minBid)} 0G`); return }
+    if (value <= currentHighestBid) { setErrorMsg(`Must exceed current highest bid of ${formatEther(currentHighestBid)} 0G`); return }
 
     setStatus("sending")
     setErrorMsg("")
@@ -71,14 +71,14 @@ export function BidDialog({
         <DialogHeader>
           <DialogTitle>Place a Bid</DialogTitle>
           <DialogDescription>
-            Token #{tokenId.toString()} · Minimum: {formatEther(minBid)} ETH
-            {currentHighestBid > 0n && ` · Current highest: ${formatEther(currentHighestBid)} ETH`}
+            Token #{tokenId.toString()} · Minimum: {formatEther(minBid)} 0G
+            {currentHighestBid > 0n && ` · Current highest: ${formatEther(currentHighestBid)} 0G`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Bid amount (ETH)</Label>
+            <Label>Bid amount (0G)</Label>
             <Input
               type="number"
               step="0.001"

@@ -119,7 +119,7 @@ export function ApproveAndListDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Minimum bid (ETH) — set to 0 for any bid</Label>
+            <Label>Minimum bid (0G) — set to 0 for any bid</Label>
             <Input
               type="number"
               min="0"
