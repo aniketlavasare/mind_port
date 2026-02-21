@@ -104,12 +104,13 @@ function BuilderPageInner() {
 
   const handleParams = useCallback(({ example, id }: ParamState) => {
     if (id) {
-      const record = getAgent(id)
-      if (record) {
-        setForm(specToForm(record.spec))
-        setAgentId(record.id)
-        savedSpecJson.current = JSON.stringify(record.spec)
-      }
+      getAgent(id).then(record => {
+        if (record) {
+          setForm(specToForm(record.spec))
+          setAgentId(record.id)
+          savedSpecJson.current = JSON.stringify(record.spec)
+        }
+      })
       return
     }
     if (example && EXAMPLE_SPECS[example]) {
@@ -134,13 +135,13 @@ function BuilderPageInner() {
     setTimeout(() => setSaveLabel(null), 2000)
   }
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (agentId) {
-      updateAgent(agentId, spec)
+      await updateAgent(agentId, spec)
       savedSpecJson.current = JSON.stringify(spec)
       flashSaved("Saved")
     } else {
-      const record = createAgent(spec)
+      const record = await createAgent(spec)
       setAgentId(record.id)
       savedSpecJson.current = JSON.stringify(spec)
       flashSaved("Saved")
@@ -148,8 +149,8 @@ function BuilderPageInner() {
     }
   }, [agentId, spec, router])
 
-  const handleSaveAsNew = useCallback(() => {
-    const record = createAgent(spec)
+  const handleSaveAsNew = useCallback(async () => {
+    const record = await createAgent(spec)
     setAgentId(record.id)
     savedSpecJson.current = JSON.stringify(spec)
     flashSaved("Saved as new")

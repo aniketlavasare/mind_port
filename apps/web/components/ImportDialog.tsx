@@ -31,10 +31,19 @@ export function ImportDialog({ open, onClose, onImported }: ImportDialogProps) {
     onClose()
   }
 
-  const handleImport = () => {
+  const [importing, setImporting] = useState(false)
+
+  const handleImport = async () => {
+    let parsed: unknown
     try {
-      const parsed = JSON.parse(jsonText)
-      const records = importAgents(parsed)
+      parsed = JSON.parse(jsonText)
+    } catch {
+      setError("Invalid JSON — please check the format and try again.")
+      return
+    }
+    setImporting(true)
+    try {
+      const records = await importAgents(parsed)
       if (records.length === 0) {
         setError("No valid agents found. Check that the JSON matches the AgentSpec or AgentRecord format.")
         return
@@ -42,7 +51,9 @@ export function ImportDialog({ open, onClose, onImported }: ImportDialogProps) {
       onImported(records)
       handleClose()
     } catch {
-      setError("Invalid JSON — please check the format and try again.")
+      setError("Import failed — please try again.")
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -95,7 +106,9 @@ export function ImportDialog({ open, onClose, onImported }: ImportDialogProps) {
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleImport} disabled={!jsonText.trim()}>Import</Button>
+          <Button onClick={handleImport} disabled={!jsonText.trim() || importing}>
+            {importing ? "Importing…" : "Import"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

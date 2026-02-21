@@ -27,7 +27,7 @@ export default function MintPage() {
   const [errorMsg, setErrorMsg] = useState("")
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null)
 
-  useEffect(() => { setAgents(listAgents()) }, [])
+  useEffect(() => { listAgents().then(setAgents) }, [])
 
   const unmintedAgents = agents.filter(a => !a.onchain)
   const selected = agents.find(a => a.id === selectedId)
@@ -81,10 +81,10 @@ export default function MintPage() {
         throw new Error("Mint succeeded but could not determine tokenId")
       }
 
-      updateOnchain(selected.id, tokenId, 31337, contracts.agentBrain)
+      await updateOnchain(selected.id, tokenId, 31337, contracts.agentBrain)
       setMintedTokenId(tokenId)
       setMintState("done")
-      setAgents(listAgents())
+      listAgents().then(setAgents)
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message.split("\n")[0] : "Mint failed")
       setMintState("error")

@@ -50,9 +50,10 @@ export default function RunPage() {
 
   useEffect(() => {
     if (!id) return
-    const record = getAgent(id)
-    if (!record) { setNotFound(true); return }
-    setAgent(record)
+    getAgent(id).then(record => {
+      if (!record) setNotFound(true)
+      else setAgent(record)
+    })
   }, [id])
 
   useEffect(() => {
@@ -124,8 +125,7 @@ export default function RunPage() {
       }
 
       // Update run stats
-      const updated = incrementRunStats(agent.id)
-      if (updated) setAgent(updated)
+      incrementRunStats(agent.id).then(updated => { if (updated) setAgent(updated) })
 
       const receipt: Receipt = {
         sessionId: data.session_id,

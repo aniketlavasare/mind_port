@@ -44,7 +44,7 @@ export default function LibraryPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [listAgentId, setListAgentId] = useState<string | null>(null)
 
-  const reload = useCallback(() => setAgents(listAgents()), [])
+  const reload = useCallback(async () => setAgents(await listAgents()), [])
   useEffect(() => { reload() }, [reload])
 
   const filtered = useMemo(() => {
@@ -65,20 +65,20 @@ export default function LibraryPage() {
     })
   }, [agents, favOnly, search, sort])
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId) return
-    deleteAgent(deleteId)
+    await deleteAgent(deleteId)
     setDeleteId(null)
     reload()
   }
 
-  const handleDuplicate = (id: string) => {
-    duplicateAgent(id)
+  const handleDuplicate = async (id: string) => {
+    await duplicateAgent(id)
     reload()
   }
 
-  const handleToggleFavorite = (id: string) => {
-    toggleFavorite(id)
+  const handleToggleFavorite = async (id: string) => {
+    await toggleFavorite(id)
     reload()
   }
 
