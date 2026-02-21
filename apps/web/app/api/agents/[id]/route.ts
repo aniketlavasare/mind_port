@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readAgents, writeAgents } from "@/lib/storage/blob-server"
+import { readAgent, writeAgent, deleteAgentBlob } from "@/lib/storage/blob-server"
 import { generateId } from "@/lib/uuid"
 import type { AgentOnchain, AgentRecord } from "@/lib/types"
 
@@ -15,8 +15,7 @@ interface PatchBody {
 /** GET /api/agents/[id] */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const agents = await readAgents()
-  const record = agents.find(a => a.id === id)
+  const record = await readAgent(id)
   if (!record) return NextResponse.json({ error: "not_found" }, { status: 404 })
   return NextResponse.json(record)
 }
@@ -25,14 +24,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json() as PatchBody
-  const agents = await readAgents()
-  const idx = agents.findIndex(a => a.id === id)
-  if (idx === -1) return NextResponse.json({ error: "not_found" }, { status: 404 })
+  const existing = await readAgent(id)
+  if (!existing) return NextResponse.json({ error: "not_found" }, { status: 404 })
 
-  const existing = agents[idx]
   const now = new Date().toISOString()
 
-  // Handle duplicate: create a copy with a new ID
   if (body.duplicate) {
     const copy: AgentRecord = {
       ...existing,
@@ -43,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       stats: { runs: 0, lastRunAt: null },
       onchain: undefined,
     }
-    await writeAgents([...agents, copy])
+    await writeAgent(copy)
     return NextResponse.json(copy, { status: 201 })
   }
 
@@ -63,17 +59,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   }
 
-  agents[idx] = updated
-  await writeAgents(agents)
+  await writeAgent(updated)
   return NextResponse.json(updated)
 }
 
 /** DELETE /api/agents/[id] */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const agents = await readAgents()
-  const filtered = agents.filter(a => a.id !== id)
-  if (filtered.length === agents.length) return NextResponse.json({ error: "not_found" }, { status: 404 })
-  await writeAgents(filtered)
+  const deleted = await deleteAgentBlob(id)
+  if (!deleted) return NextResponse.json({ error: "not_found" }, { status: 404 })
   return NextResponse.json({ ok: true })
 }
