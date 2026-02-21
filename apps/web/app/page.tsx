@@ -8,6 +8,9 @@ export default function LandingPage() {
       <nav className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <span className="font-semibold text-gray-900 tracking-tight">MindPort</span>
         <div className="flex items-center gap-6">
+          <Link href="/library" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            Library
+          </Link>
           <Link href="/docs" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Docs
           </Link>
@@ -50,10 +53,10 @@ export default function LandingPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/docs"
+              href="/library"
               className="inline-flex items-center gap-2 border border-gray-200 text-gray-700 px-6 py-2.5 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              Read Docs
+              Agent Library
             </Link>
           </div>
         </div>

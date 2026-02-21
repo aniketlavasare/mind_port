@@ -79,3 +79,19 @@ export const DEFAULT_SPEC: AgentSpec = {
   policy: DEFAULT_POLICY,
   model_choice: DEFAULT_MODEL,
 }
+
+export interface AgentRecord {
+  id: string
+  createdAt: string
+  updatedAt: string
+  spec: AgentSpec
+  stats: {
+    runs: number
+    lastRunAt: string | null
+  }
+  ui: {
+    favorite: boolean
+    colorTag: "none" | "gray" | "black"
+  }
+  lastOutputFormatUsed?: string
+}
