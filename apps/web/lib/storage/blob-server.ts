@@ -17,7 +17,9 @@ export async function readAgents(): Promise<AgentRecord[]> {
     const { blobs } = await list({ prefix: "mindport/agents" })
     const found = blobs.find(b => b.pathname === BLOB_PATH)
     if (!found) return []
-    const res = await fetch(found.url, { cache: "no-store" })
+    // Use downloadUrl (signed) for private-store blobs; falls back to url for public stores.
+    const fetchUrl = found.downloadUrl ?? found.url
+    const res = await fetch(fetchUrl, { cache: "no-store" })
     if (!res.ok) return []
     return (await res.json()) as AgentRecord[]
   } catch {
@@ -28,7 +30,7 @@ export async function readAgents(): Promise<AgentRecord[]> {
 /** Overwrite the agents array in blob storage. */
 export async function writeAgents(agents: AgentRecord[]): Promise<void> {
   await put(BLOB_PATH, JSON.stringify(agents), {
-    access: "public",
+    access: "private",
     contentType: "application/json",
     allowOverwrite: true,
   })
