@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createPublicClient, http, verifyMessage } from "viem"
 import { hardhat } from "viem/chains"
 import { PYTHON_SERVICE_URL } from "@/lib/env"
-import { BRAIN_ABI } from "@/lib/contracts"
-import localContracts from "@/lib/contracts.local.json"
+import { BRAIN_ABI, getContracts } from "@/lib/contracts"
+import { zerogTestnet } from "@/lib/web3"
 
 interface TokenGate {
   tokenId: number
@@ -13,7 +13,6 @@ interface TokenGate {
 }
 
 async function verifyOwnership(gate: TokenGate): Promise<string | null> {
-  // 1. Verify signature
   const message = `MindPort Run Authorization\nTokenId: ${gate.tokenId}\nNonce: ${gate.nonce}`
   const isValid = await verifyMessage({
     address: gate.userAddress as `0x${string}`,
@@ -22,21 +21,20 @@ async function verifyOwnership(gate: TokenGate): Promise<string | null> {
   })
   if (!isValid) return "invalid_signature"
 
-  // 2. Check on-chain ownership via local RPC
+  const contracts = getContracts()
+  if (!contracts) return null // contracts not deployed, skip gate
+
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545"
-  const brainAddress = localContracts.agentBrain
-  if (!brainAddress || brainAddress === "0x0000000000000000000000000000000000000000") {
-    return null // contracts not deployed, skip gate
-  }
+  const chain = contracts.chainId === 16602 ? zerogTestnet : hardhat
 
   const client = createPublicClient({
-    chain: hardhat,
+    chain,
     transport: http(rpcUrl),
   })
 
   try {
     const owner = await client.readContract({
-      address: brainAddress as `0x${string}`,
+      address: contracts.agentBrain,
       abi: BRAIN_ABI,
       functionName: "ownerOf",
       args: [BigInt(gate.tokenId)],
@@ -48,7 +46,7 @@ async function verifyOwnership(gate: TokenGate): Promise<string | null> {
     return "token_not_found"
   }
 
-  return null // no error = authorized
+  return null
 }
 
 export async function POST(req: NextRequest) {
