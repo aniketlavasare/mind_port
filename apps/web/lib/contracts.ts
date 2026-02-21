@@ -1,12 +1,12 @@
 /**
  * Static ABIs and dynamic address loader for deployed contracts.
- * ABIs are derived from the Solidity source and never need to be regenerated
- * unless the contract interface changes.
- * Addresses come from contracts.local.json, written by scripts/export-contracts.ts.
+ * Addresses come from contracts.local.json (chainId 31337) or
+ * contracts.zerog.json (chainId 16602), written by scripts/export-contracts.ts.
  */
 
 import { parseAbi } from "viem"
 import localAddrs from "./contracts.local.json"
+import zerogAddrs from "./contracts.zerog.json"
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
@@ -55,10 +55,16 @@ export interface ContractAddresses {
 
 const ZERO = "0x0000000000000000000000000000000000000000"
 
-/** Returns contract addresses or null if not yet deployed (zero addresses in JSON). */
+function isDeployed(addr: string) {
+  return addr && addr !== ZERO && addr !== "0x0..."
+}
+
+/** Returns contract addresses for the chain configured in NEXT_PUBLIC_CHAIN_ID, or null if not yet deployed. */
 export function getContracts(): ContractAddresses | null {
-  const { agentBrain, marketplace, chainId } = localAddrs
-  if (!agentBrain || agentBrain === ZERO || !marketplace || marketplace === ZERO) return null
+  const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337)
+  const addrs = chainId === 16602 ? zerogAddrs : localAddrs
+  const { agentBrain, marketplace } = addrs
+  if (!isDeployed(agentBrain) || !isDeployed(marketplace)) return null
   return {
     chainId,
     agentBrain: agentBrain as `0x${string}`,

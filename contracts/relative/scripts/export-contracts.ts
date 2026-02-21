@@ -1,20 +1,26 @@
 /**
  * export-contracts.ts
- * Reads deployed-local.json and writes apps/web/lib/contracts.local.json
- * with the deployed addresses. ABIs are maintained statically in lib/contracts.ts.
+ * Reads deployed-{network}.json and writes apps/web/lib/contracts.{network}.json.
  *
- * Run after deploy.ts:
- *   npx hardhat run scripts/export-contracts.ts
+ * Usage:
+ *   npx hardhat run scripts/export-contracts.ts --network localhost
+ *   npx hardhat run scripts/export-contracts.ts --network zerog
  */
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 
-const deployedPath = join(process.cwd(), "deployed-local.json");
+const networkName = process.env.HARDHAT_NETWORK ?? "localhost";
+const isZerog = networkName === "zerog";
+
+const deployedFile = isZerog ? "deployed-zerog.json" : "deployed-local.json";
+const outputFile = isZerog ? "contracts.zerog.json" : "contracts.local.json";
+
+const deployedPath = join(process.cwd(), deployedFile);
 
 if (!existsSync(deployedPath)) {
-  console.error("✗  deployed-local.json not found.");
-  console.error("   Run: npx hardhat run scripts/deploy.ts --network localhost");
+  console.error(`✗  ${deployedFile} not found.`);
+  console.error(`   Run: npx hardhat run scripts/deploy.ts --network ${networkName}`);
   process.exit(1);
 }
 
@@ -26,8 +32,7 @@ const deployed = JSON.parse(readFileSync(deployedPath, "utf-8")) as {
   deployedAt: string;
 };
 
-// Path: contracts/relative/ → ../../ → mind_port root → apps/web/lib/
-const webLibPath = join(process.cwd(), "../../apps/web/lib/contracts.local.json");
+const webLibPath = join(process.cwd(), "../../apps/web/lib", outputFile);
 
 const output = {
   chainId: deployed.chainId,
@@ -37,7 +42,7 @@ const output = {
 
 writeFileSync(webLibPath, JSON.stringify(output, null, 2));
 
-console.log("✔  Exported contracts.local.json");
+console.log(`✔  Exported ${outputFile}`);
 console.log("   ChainId:          ", deployed.chainId);
 console.log("   AgentBrain:       ", deployed.agentBrain);
 console.log("   AgentMarketplace: ", deployed.marketplace);
