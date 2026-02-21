@@ -1,5 +1,4 @@
 /**
- * export-contracts.ts
  * Reads deployed-{network}.json and writes apps/web/lib/contracts.{network}.json.
  *
  * Usage:
@@ -10,11 +9,15 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 
-const networkName = process.env.HARDHAT_NETWORK ?? "localhost";
-const isZerog = networkName === "zerog";
+// Hardhat v3 does NOT set HARDHAT_NETWORK from --network; parse argv directly.
+const networkFlagIdx = process.argv.indexOf("--network");
+const networkName = networkFlagIdx !== -1
+  ? process.argv[networkFlagIdx + 1]
+  : (process.env.HARDHAT_NETWORK ?? "localhost");
 
+const isZerog = networkName === "zerog";
 const deployedFile = isZerog ? "deployed-zerog.json" : "deployed-local.json";
-const outputFile = isZerog ? "contracts.zerog.json" : "contracts.local.json";
+const outputFile   = isZerog ? "contracts.zerog.json" : "contracts.local.json";
 
 const deployedPath = join(process.cwd(), deployedFile);
 
@@ -34,13 +37,11 @@ const deployed = JSON.parse(readFileSync(deployedPath, "utf-8")) as {
 
 const webLibPath = join(process.cwd(), "../../apps/web/lib", outputFile);
 
-const output = {
-  chainId: deployed.chainId,
-  agentBrain: deployed.agentBrain,
+writeFileSync(webLibPath, JSON.stringify({
+  chainId:     deployed.chainId,
+  agentBrain:  deployed.agentBrain,
   marketplace: deployed.marketplace,
-};
-
-writeFileSync(webLibPath, JSON.stringify(output, null, 2));
+}, null, 2));
 
 console.log(`✔  Exported ${outputFile}`);
 console.log("   ChainId:          ", deployed.chainId);

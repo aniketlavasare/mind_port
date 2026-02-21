@@ -1,8 +1,13 @@
+import "dotenv/config";
 import { network } from "hardhat";
 import { writeFileSync } from "fs";
 import { join } from "path";
 
-const networkName = process.env.HARDHAT_NETWORK ?? "hardhatMainnet";
+// Hardhat v3 does NOT set HARDHAT_NETWORK from --network; parse argv directly.
+const networkFlagIdx = process.argv.indexOf("--network");
+const networkName = networkFlagIdx !== -1
+  ? process.argv[networkFlagIdx + 1]
+  : (process.env.HARDHAT_NETWORK ?? "hardhatMainnet");
 
 const CHAIN_IDS: Record<string, number> = {
   localhost: 31337,
@@ -13,16 +18,15 @@ const CHAIN_IDS: Record<string, number> = {
 
 const chainId = CHAIN_IDS[networkName] ?? 31337;
 
-// For localhost / zerog we connect to the http endpoint; for in-process nets use edr-simulated
-const connectArg =
-  networkName === "localhost"
-    ? { network: "localhost", chainType: "l1" as const }
-    : networkName === "zerog"
-    ? { network: "zerog", chainType: "l1" as const }
-    : networkName === "sepolia"
-    ? { network: "sepolia", chainType: "l1" as const }
-    : { network: "hardhatMainnet", chainType: "l1" as const };
+type ChainType = "l1" | "op";
+const CONNECT_ARGS: Record<string, { network: string; chainType: ChainType }> = {
+  localhost:      { network: "localhost",      chainType: "l1" },
+  zerog:          { network: "zerog",          chainType: "l1" },
+  sepolia:        { network: "sepolia",        chainType: "l1" },
+  hardhatMainnet: { network: "hardhatMainnet", chainType: "l1" },
+};
 
+const connectArg = CONNECT_ARGS[networkName] ?? CONNECT_ARGS["hardhatMainnet"];
 const { ethers } = await network.connect(connectArg);
 
 const [deployer] = await ethers.getSigners();
@@ -47,7 +51,7 @@ await marketplace.waitForDeployment();
 const marketplaceAddress = await marketplace.getAddress();
 console.log("AgentMarketplace deployed →", marketplaceAddress);
 
-// ─── Persist addresses for export-contracts.ts ───────────────────────────────
+// ─── Persist addresses ────────────────────────────────────────────────────────
 
 const deployed = {
   chainId,
@@ -57,10 +61,9 @@ const deployed = {
   deployedAt: new Date().toISOString(),
 };
 
-// Save to network-specific file so multiple deployments don't overwrite each other
 const outFile = networkName === "zerog" ? "deployed-zerog.json" : "deployed-local.json";
 const outPath = join(process.cwd(), outFile);
 writeFileSync(outPath, JSON.stringify(deployed, null, 2));
 
 console.log("\nAddresses saved →", outPath);
-console.log("\nNext: npx hardhat run scripts/export-contracts.ts --network", networkName);
+console.log(`\nNext: npx hardhat run scripts/export-contracts.ts --network ${networkName}`);
