@@ -6,7 +6,7 @@ Sends a tutor AgentSpec + a user question and prints the answer.
 import json
 import urllib.request
 
-URL = "http://127.0.0.1:8001/run"
+URL = "http://127.0.0.1:8000/run"
 
 payload = {
     "spec": {
