@@ -2,13 +2,13 @@
 Pydantic models for the mind_port_runner service.
 
 All request/response shapes are defined here so they can be imported by
-main.py, runner.py, and tools.py without circular dependencies.
+main.py and runner.py without circular dependencies.
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, field_validator
 class PolicyToggles(BaseModel):
     """
     Lightweight policy configuration that is appended to the agent's system
-    prompt at runtime.  No hard enforcement — we rely on prompt augmentation.
+    prompt at runtime.
 
     Fields:
         ask_clarifying_questions: If True, agent is instructed to ask up to 2
@@ -45,34 +45,6 @@ class PolicyToggles(BaseModel):
         return v
 
 
-class ToolSpec(BaseModel):
-    """
-    A user-provided tool definition.  The `code` field must contain valid Python
-    that defines a callable named exactly `name`.  The runner will attempt to
-    compile and exec it; failures are caught and logged in the trace.
-
-    Fields:
-        name: Python identifier — the function name defined in `code`.
-        description: Human-readable description surfaced in the trace.
-        code: Python source code string.  Must define a function named `name`.
-        input_schema: Optional JSON Schema dict for the function's arguments.
-        output_schema: Optional JSON Schema dict for the function's return value.
-    """
-
-    name: str
-    description: str
-    code: str
-    input_schema: Optional[dict[str, Any]] = None
-    output_schema: Optional[dict[str, Any]] = None
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, v: str) -> str:
-        if not v.isidentifier():
-            raise ValueError(f"Tool name '{v}' is not a valid Python identifier")
-        return v
-
-
 class AgentSpec(BaseModel):
     """
     Full specification for a dynamically-constructed ADK agent.
@@ -83,7 +55,6 @@ class AgentSpec(BaseModel):
         tags: Arbitrary string tags (informational only).
         prompt: The system prompt / instruction for the agent.
         policy: Behavioural toggles that are injected into the system prompt.
-        tools: Optional list of user-provided tool definitions.
         model_choice: Model identifier string from the frontend dropdown.
             At runtime the service always uses DEFAULT_MODEL; this field is
             recorded in the trace for auditability.
@@ -94,7 +65,6 @@ class AgentSpec(BaseModel):
     tags: list[str] = []
     prompt: str = Field(min_length=1)
     policy: PolicyToggles = Field(default_factory=PolicyToggles)
-    tools: list[ToolSpec] = []
     model_choice: str = ""
 
 

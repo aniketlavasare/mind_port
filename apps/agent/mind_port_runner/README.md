@@ -70,13 +70,6 @@ curl http://localhost:8001/health
       "max_output_tokens": 512,
       "temperature": 0.7
     },
-    "tools": [
-      {
-        "name": "word_count",
-        "description": "Counts words in a string",
-        "code": "def word_count(text: str) -> int:\n    return len(text.split())"
-      }
-    ],
     "model_choice": "openai/qwen/qwen-2.5-7b-instruct"
   },
   "message": "Help me pitch a B2B SaaS tool for small bakeries.",
@@ -93,7 +86,7 @@ curl http://localhost:8001/health
 }
 ```
 
-**Error response (validation):**
+**Validation error response:**
 
 ```json
 {
@@ -103,7 +96,7 @@ curl http://localhost:8001/health
 }
 ```
 
-**Error response (internal):**
+**Internal error response:**
 
 ```json
 {
@@ -114,26 +107,10 @@ curl http://localhost:8001/health
 
 ---
 
-## Tool code format
-
-Tools must define a Python function at the top level with the exact name given
-in `ToolSpec.name`.  Example:
-
-```python
-def summarise(text: str, max_sentences: int = 3) -> str:
-    sentences = text.split(". ")
-    return ". ".join(sentences[:max_sentences])
-```
-
-If compilation fails, the tool is skipped and the agent runs without it.
-The failure is logged server-side.
-
----
-
 ## Policy enforcement
 
 Policy flags are injected as additional instructions appended to the system
-prompt.  The model is not hard-constrained — this is prompt-level enforcement.
+prompt.
 
 | Flag | Injected instruction |
 |---|---|

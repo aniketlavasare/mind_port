@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 import os
-import uuid
 from pathlib import Path
 
 from google.adk.agents import LlmAgent
@@ -23,10 +22,8 @@ from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
-from litellm.exceptions import BadRequestError as LiteLLMBadRequestError
 
 from .spec import AgentSpec, RunRequest, RunResponse
-from .tools import build_tools
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +70,13 @@ DEFAULT_MODEL: str = os.getenv(
     "openai/qwen/qwen-2.5-7b-instruct",
 )
 
-# ─── Prompt augmentation ──────────────────────────────────────────────────────
+# ─── Prompt augmentation ─────────────────────────────────────────────────────
 
 
 def _build_instruction(spec: AgentSpec) -> str:
     """
-    Construct the full system prompt by appending policy-driven instructions to
-    the user-supplied base prompt.
+    Construct the full system prompt by appending policy-driven instructions
+    to the user-supplied base prompt.
 
     Takes:
         spec: The AgentSpec containing the base prompt and policy toggles.
@@ -113,7 +110,7 @@ def _build_instruction(spec: AgentSpec) -> str:
 # ─── Agent construction ───────────────────────────────────────────────────────
 
 
-def build_agent(spec: AgentSpec) -> tuple[LlmAgent, list[dict[str, str]]]:
+def build_agent(spec: AgentSpec) -> LlmAgent:
     """
     Construct an ADK LlmAgent from an AgentSpec.
 
@@ -121,12 +118,8 @@ def build_agent(spec: AgentSpec) -> tuple[LlmAgent, list[dict[str, str]]]:
         spec: Fully validated AgentSpec.
 
     Returns:
-        A tuple of:
-        - agent: The constructed LlmAgent, ready to run.
-        - tool_trace: List of dicts describing each tool's compilation outcome.
+        A configured LlmAgent ready to run.
     """
-    tools, tool_trace = build_tools(spec.tools)
-
     model_kwargs: dict = {}
     if spec.policy.temperature is not None:
         model_kwargs["temperature"] = spec.policy.temperature
@@ -146,14 +139,11 @@ def build_agent(spec: AgentSpec) -> tuple[LlmAgent, list[dict[str, str]]]:
     if not safe_name or not safe_name[0].isalpha():
         safe_name = "agent_" + safe_name
 
-    agent = LlmAgent(
+    return LlmAgent(
         name=safe_name,
         instruction=instruction,
-        tools=tools,
         model=model,
     )
-
-    return agent, tool_trace
 
 
 # ─── Agent execution ──────────────────────────────────────────────────────────
@@ -169,9 +159,6 @@ async def run_agent(request: RunRequest) -> RunResponse:
 
     Returns:
         A RunResponse with the agent's final answer and the session_id used.
-
-    Raises:
-        RuntimeError: If the agent produces no final response.
     """
     session_id = request.effective_session_id()
     spec = request.spec
@@ -183,15 +170,7 @@ async def run_agent(request: RunRequest) -> RunResponse:
         spec.model_choice,
     )
 
-    agent, tool_trace = build_agent(spec)
-
-    for entry in tool_trace:
-        logger.info(
-            "tool | name=%s status=%s msg=%s",
-            entry["name"],
-            entry["status"],
-            entry["message"],
-        )
+    agent = build_agent(spec)
 
     session_service = InMemorySessionService()
     await session_service.create_session(
@@ -208,59 +187,21 @@ async def run_agent(request: RunRequest) -> RunResponse:
 
     answer = ""
 
-    logger.info("run_agent executing | session=%s message_len=%d", session_id, len(request.message))
+    logger.info(
+        "run_agent executing | session=%s message_len=%d",
+        session_id,
+        len(request.message),
+    )
 
-    user_message = Content(role="user", parts=[Part(text=request.message)])
-
-    try:
-        async for event in runner.run_async(
-            user_id="user",
-            session_id=session_id,
-            new_message=user_message,
-        ):
-            if event.is_final_response():
-                if event.content and event.content.parts:
-                    answer = event.content.parts[0].text or ""
-                break
-
-    except LiteLLMBadRequestError as exc:
-        # The 0G upstream provider does not support function-calling for this
-        # model.  Rebuild the agent without tools and retry once.
-        if tool_trace and any(e["status"] == "registered" for e in tool_trace):
-            logger.warning(
-                "run_agent tool-call rejected by provider (400) — retrying without tools | session=%s error=%s",
-                session_id,
-                exc,
-            )
-            agent_no_tools = LlmAgent(
-                name=agent.name,
-                instruction=agent.instruction,
-                tools=[],
-                model=agent.model,
-            )
-            runner_no_tools = Runner(
-                app_name="mind_port",
-                agent=agent_no_tools,
-                session_service=session_service,
-            )
-            # Create a fresh session for the retry
-            retry_session_id = session_id + "-retry"
-            await session_service.create_session(
-                app_name="mind_port",
-                user_id="user",
-                session_id=retry_session_id,
-            )
-            async for event in runner_no_tools.run_async(
-                user_id="user",
-                session_id=retry_session_id,
-                new_message=user_message,
-            ):
-                if event.is_final_response():
-                    if event.content and event.content.parts:
-                        answer = event.content.parts[0].text or ""
-                    break
-        else:
-            raise
+    async for event in runner.run_async(
+        user_id="user",
+        session_id=session_id,
+        new_message=Content(role="user", parts=[Part(text=request.message)]),
+    ):
+        if event.is_final_response():
+            if event.content and event.content.parts:
+                answer = event.content.parts[0].text or ""
+            break
 
     if not answer:
         logger.warning("run_agent produced empty answer | session=%s", session_id)

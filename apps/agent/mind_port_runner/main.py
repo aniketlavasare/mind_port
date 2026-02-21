@@ -89,9 +89,8 @@ async def run(request: RunRequest) -> RunResponse:
         session_id - The session ID used for this run.
     """
     logger.info(
-        "POST /run | agent=%s tools=%d session=%s",
+        "POST /run | agent=%s session=%s",
         request.spec.name,
-        len(request.spec.tools),
         request.session_id or "(auto)",
     )
     return await run_agent(request)
